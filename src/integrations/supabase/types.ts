@@ -127,6 +127,8 @@ export type Database = {
       }
       users: {
         Row: {
+          archived: boolean | null
+          archived_at: string | null
           avatar_url: string | null
           created_at: string
           email: string
@@ -136,6 +138,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived?: boolean | null
+          archived_at?: string | null
           avatar_url?: string | null
           created_at?: string
           email: string
@@ -145,6 +149,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived?: boolean | null
+          archived_at?: string | null
           avatar_url?: string | null
           created_at?: string
           email?: string
