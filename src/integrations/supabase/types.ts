@@ -624,6 +624,16 @@ export type Database = {
       }
     }
     Functions: {
+      get_user_balance: {
+        Args: { user_uuid?: string }
+        Returns: {
+          account_count: number
+          last_sync: string
+          total_available: number
+          total_balance: number
+          user_id: string
+        }[]
+      }
       is_service_role: { Args: never; Returns: boolean }
       owns_bank_connection: {
         Args: { _connection_id: string }
