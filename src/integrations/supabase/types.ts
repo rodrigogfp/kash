@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_snapshots: {
+        Row: {
+          created_at: string
+          currency: string
+          expenses: number
+          id: string
+          income: number
+          metadata: Json | null
+          net: number
+          period_end: string
+          period_start: string
+          period_type: string
+          totals: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          expenses?: number
+          id?: string
+          income?: number
+          metadata?: Json | null
+          net?: number
+          period_end: string
+          period_start: string
+          period_type?: string
+          totals?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          expenses?: number
+          id?: string
+          income?: number
+          metadata?: Json | null
+          net?: number
+          period_end?: string
+          period_start?: string
+          period_type?: string
+          totals?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_snapshots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_events: {
         Row: {
           created_at: string
@@ -203,6 +259,7 @@ export type Database = {
       }
       categories: {
         Row: {
+          auto_rules: Json | null
           color: string | null
           created_at: string
           icon: string | null
@@ -213,6 +270,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_rules?: Json | null
           color?: string | null
           created_at?: string
           icon?: string | null
@@ -223,6 +281,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_rules?: Json | null
           color?: string | null
           created_at?: string
           icon?: string | null
@@ -314,6 +373,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "chat_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      period_comparisons: {
+        Row: {
+          base_period_end: string
+          base_period_start: string
+          compare_period_end: string
+          compare_period_start: string
+          created_at: string
+          currency: string
+          expires_at: string | null
+          id: string
+          metrics: Json
+          period_key: string
+          user_id: string
+        }
+        Insert: {
+          base_period_end: string
+          base_period_start: string
+          compare_period_end: string
+          compare_period_start: string
+          created_at?: string
+          currency?: string
+          expires_at?: string | null
+          id?: string
+          metrics?: Json
+          period_key: string
+          user_id: string
+        }
+        Update: {
+          base_period_end?: string
+          base_period_start?: string
+          compare_period_end?: string
+          compare_period_start?: string
+          created_at?: string
+          currency?: string
+          expires_at?: string | null
+          id?: string
+          metrics?: Json
+          period_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "period_comparisons_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -742,9 +851,48 @@ export type Database = {
           total_balance: number
         }[]
       }
+      compute_monthly_snapshot: {
+        Args: {
+          p_currency?: string
+          p_month?: number
+          p_user_id: string
+          p_year?: number
+        }
+        Returns: string
+      }
+      compute_period_comparison: {
+        Args: {
+          p_base_end: string
+          p_base_start: string
+          p_compare_end: string
+          p_compare_start: string
+          p_currency?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       finalize_sync_job: {
         Args: { p_error_message?: string; p_job_id: string; p_result?: Json }
         Returns: undefined
+      }
+      get_monthly_analytics: {
+        Args: {
+          p_force_refresh?: boolean
+          p_month?: number
+          p_user_id: string
+          p_year?: number
+        }
+        Returns: {
+          cached_at: string
+          expenses: number
+          income: number
+          is_cached: boolean
+          net: number
+          period_end: string
+          period_start: string
+          snapshot_id: string
+          totals: Json
+        }[]
       }
       get_monthly_trend: {
         Args: { p_months?: number; p_user_id: string }
