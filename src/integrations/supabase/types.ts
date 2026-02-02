@@ -81,6 +81,214 @@ export type Database = {
           },
         ]
       }
+      bank_accounts: {
+        Row: {
+          account_type: string
+          available_balance: number | null
+          connection_id: string
+          created_at: string
+          currency: string
+          current_balance: number | null
+          external_account_id: string
+          id: string
+          last_balance_update: string | null
+          metadata: Json | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          account_type: string
+          available_balance?: number | null
+          connection_id: string
+          created_at?: string
+          currency?: string
+          current_balance?: number | null
+          external_account_id: string
+          id?: string
+          last_balance_update?: string | null
+          metadata?: Json | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          account_type?: string
+          available_balance?: number | null
+          connection_id?: string
+          created_at?: string
+          currency?: string
+          current_balance?: number | null
+          external_account_id?: string
+          id?: string
+          last_balance_update?: string | null
+          metadata?: Json | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_connections: {
+        Row: {
+          access_token_encrypted: string | null
+          created_at: string
+          error_message: string | null
+          external_connection_id: string
+          id: string
+          last_sync: string | null
+          provider_key: string
+          refresh_token_encrypted: string | null
+          scopes: string[] | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          error_message?: string | null
+          external_connection_id: string
+          id?: string
+          last_sync?: string | null
+          provider_key: string
+          refresh_token_encrypted?: string | null
+          scopes?: string[] | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          error_message?: string | null
+          external_connection_id?: string
+          id?: string
+          last_sync?: string | null
+          provider_key?: string
+          refresh_token_encrypted?: string | null
+          scopes?: string[] | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_connections_provider_key_fkey"
+            columns: ["provider_key"]
+            isOneToOne: false
+            referencedRelation: "supported_banks"
+            referencedColumns: ["provider_key"]
+          },
+          {
+            foreignKeyName: "bank_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supported_banks: {
+        Row: {
+          countries: string[] | null
+          created_at: string
+          display_name: string
+          enabled: boolean | null
+          id: string
+          logo_url: string | null
+          metadata: Json | null
+          provider_key: string
+          updated_at: string
+        }
+        Insert: {
+          countries?: string[] | null
+          created_at?: string
+          display_name: string
+          enabled?: boolean | null
+          id?: string
+          logo_url?: string | null
+          metadata?: Json | null
+          provider_key: string
+          updated_at?: string
+        }
+        Update: {
+          countries?: string[] | null
+          created_at?: string
+          display_name?: string
+          enabled?: boolean | null
+          id?: string
+          logo_url?: string | null
+          metadata?: Json | null
+          provider_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sync_jobs: {
+        Row: {
+          attempts: number | null
+          connection_id: string
+          created_at: string
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          job_type: string
+          max_attempts: number | null
+          payload: Json | null
+          result: Json | null
+          scheduled_at: string
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number | null
+          connection_id: string
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          job_type: string
+          max_attempts?: number | null
+          payload?: Json | null
+          result?: Json | null
+          scheduled_at?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number | null
+          connection_id?: string
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          job_type?: string
+          max_attempts?: number | null
+          payload?: Json | null
+          result?: Json | null
+          scheduled_at?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_jobs_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           biometric_enabled: boolean | null
