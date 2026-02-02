@@ -624,6 +624,34 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_user_total_balance: {
+        Args: { p_user_id: string }
+        Returns: {
+          account_count: number
+          currencies: Json
+          total_available: number
+          total_balance: number
+        }[]
+      }
+      get_monthly_trend: {
+        Args: { p_months?: number; p_user_id: string }
+        Returns: {
+          expenses: number
+          income: number
+          month: string
+          net: number
+        }[]
+      }
+      get_spending_by_category: {
+        Args: { p_end_date?: string; p_start_date?: string; p_user_id: string }
+        Returns: {
+          category: string
+          category_id: string
+          percentage: number
+          total_amount: number
+          transaction_count: number
+        }[]
+      }
       get_user_balance: {
         Args: { user_uuid?: string }
         Returns: {
@@ -639,7 +667,23 @@ export type Database = {
         Args: { _connection_id: string }
         Returns: boolean
       }
+      refresh_user_aggregates: {
+        Args: { p_user_id?: string }
+        Returns: undefined
+      }
       refresh_user_balances: { Args: never; Returns: undefined }
+      upsert_transaction_from_provider: {
+        Args: { p_connection_id: string; p_payload: Json }
+        Returns: string
+      }
+      upsert_transactions_batch: {
+        Args: { p_connection_id: string; p_transactions: Json }
+        Returns: {
+          error_count: number
+          inserted_count: number
+          updated_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
