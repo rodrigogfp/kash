@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 // Pages
 import Dashboard from "./pages/Dashboard";
 import AccountsPage from "./pages/AccountsPage";
+import AccountDetailPage from "./pages/AccountDetailPage";
 import LoginPage from "./pages/auth/LoginPage";
 import SignUpPage from "./pages/auth/SignUpPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
@@ -38,6 +39,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AccountsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounts/:connectionId"
+              element={
+                <ProtectedRoute>
+                  <AccountDetailPage />
                 </ProtectedRoute>
               }
             />
