@@ -12,6 +12,9 @@ import AccountsPage from "./pages/AccountsPage";
 import AccountDetailPage from "./pages/AccountDetailPage";
 import ChatPage from "./pages/ChatPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import GoalsPage from "./pages/GoalsPage";
+import AlertsPage from "./pages/AlertsPage";
+import NotificationSettingsPage from "./pages/NotificationSettingsPage";
 import LoginPage from "./pages/auth/LoginPage";
 import SignUpPage from "./pages/auth/SignUpPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
@@ -65,6 +68,30 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/goals"
+              element={
+                <ProtectedRoute>
+                  <GoalsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/alerts"
+              element={
+                <ProtectedRoute>
+                  <AlertsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/notifications"
+              element={
+                <ProtectedRoute>
+                  <NotificationSettingsPage />
                 </ProtectedRoute>
               }
             />
