@@ -380,6 +380,104 @@ export type Database = {
           },
         ]
       }
+      goal_contributions: {
+        Row: {
+          amount: number
+          contributed_at: string
+          created_at: string
+          goal_id: string
+          id: string
+          note: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          contributed_at?: string
+          created_at?: string
+          goal_id: string
+          id?: string
+          note?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          contributed_at?: string
+          created_at?: string
+          goal_id?: string
+          id?: string
+          note?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_contributions_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goal_contributions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          category: string | null
+          created_at: string
+          currency: string
+          current_amount: number
+          deadline: string | null
+          id: string
+          metadata: Json | null
+          name: string
+          status: string
+          target_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          currency?: string
+          current_amount?: number
+          deadline?: string | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          status?: string
+          target_amount: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          currency?: string
+          current_amount?: number
+          deadline?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          status?: string
+          target_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       period_comparisons: {
         Row: {
           base_period_end: string
@@ -871,6 +969,15 @@ export type Database = {
         }
         Returns: Json
       }
+      compute_period_totals: {
+        Args: {
+          p_currency?: string
+          p_end_date: string
+          p_start_date: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       finalize_sync_job: {
         Args: { p_error_message?: string; p_job_id: string; p_result?: Json }
         Returns: undefined
@@ -903,6 +1010,21 @@ export type Database = {
           net: number
         }[]
       }
+      get_period_summary: {
+        Args: {
+          p_currency?: string
+          p_end_date: string
+          p_start_date: string
+          p_user_id: string
+        }
+        Returns: {
+          by_category: Json
+          net: number
+          total_expenses: number
+          total_income: number
+          transaction_count: number
+        }[]
+      }
       get_spending_by_category: {
         Args: { p_end_date?: string; p_start_date?: string; p_user_id: string }
         Returns: {
@@ -929,6 +1051,11 @@ export type Database = {
         Returns: boolean
       }
       owns_chat_session: { Args: { _session_id: string }; Returns: boolean }
+      owns_goal: { Args: { _goal_id: string }; Returns: boolean }
+      predict_goal_completion: {
+        Args: { p_goal_id: string; p_user_id: string }
+        Returns: Json
+      }
       refresh_user_aggregates: {
         Args: { p_user_id?: string }
         Returns: undefined
