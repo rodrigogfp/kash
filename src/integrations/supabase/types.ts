@@ -633,6 +633,10 @@ export type Database = {
           total_balance: number
         }[]
       }
+      finalize_sync_job: {
+        Args: { p_error_message?: string; p_job_id: string; p_result?: Json }
+        Returns: undefined
+      }
       get_monthly_trend: {
         Args: { p_months?: number; p_user_id: string }
         Returns: {
