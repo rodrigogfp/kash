@@ -242,6 +242,112 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          content: string
+          content_vector: number[] | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+          session_id: string
+          tokens: number | null
+        }
+        Insert: {
+          content: string
+          content_vector?: number[] | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+          session_id: string
+          tokens?: number | null
+        }
+        Update: {
+          content?: string
+          content_vector?: number[] | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+          session_id?: string
+          tokens?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_sessions: {
+        Row: {
+          context: Json | null
+          created_at: string
+          id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quick_chips: {
+        Row: {
+          category: string
+          created_at: string
+          enabled: boolean
+          id: string
+          ordering: number
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          ordering?: number
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          ordering?: number
+          text?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       supported_banks: {
         Row: {
           countries: string[] | null
@@ -671,6 +777,7 @@ export type Database = {
         Args: { _connection_id: string }
         Returns: boolean
       }
+      owns_chat_session: { Args: { _session_id: string }; Returns: boolean }
       refresh_user_aggregates: {
         Args: { p_user_id?: string }
         Returns: undefined
