@@ -247,6 +247,7 @@ export type Database = {
           content: string
           content_vector: number[] | null
           created_at: string
+          deleted_at: string | null
           id: string
           metadata: Json | null
           role: string
@@ -257,6 +258,7 @@ export type Database = {
           content: string
           content_vector?: number[] | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
           metadata?: Json | null
           role: string
@@ -267,6 +269,7 @@ export type Database = {
           content?: string
           content_vector?: number[] | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
           metadata?: Json | null
           role?: string
