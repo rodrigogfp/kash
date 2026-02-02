@@ -138,7 +138,10 @@ export default function Dashboard() {
             </CardHeader>
           </Card>
 
-          <Card className="glass hover:glow transition-shadow cursor-pointer">
+          <Card 
+            className="glass hover:glow transition-shadow cursor-pointer"
+            onClick={() => navigate("/chat")}
+          >
             <CardHeader className="flex flex-row items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center">
                 <MessageCircle className="w-6 h-6 text-accent" />
