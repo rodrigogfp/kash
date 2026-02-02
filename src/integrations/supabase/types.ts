@@ -1144,6 +1144,13 @@ export type Database = {
     }
     Functions: {
       archive_old_alerts: { Args: { p_days_old?: number }; Returns: number }
+      batch_update_goals_progress: {
+        Args: never
+        Returns: {
+          alerts_created: number
+          goals_updated: number
+        }[]
+      }
       calculate_user_total_balance: {
         Args: { p_user_id: string }
         Returns: {
@@ -1290,6 +1297,7 @@ export type Database = {
       }
       refresh_user_balances: { Args: never; Returns: undefined }
       run_scheduled_alert_scan: { Args: never; Returns: Json }
+      run_scheduled_maintenance: { Args: never; Returns: Json }
       scan_for_bill_reminders: {
         Args: { p_batch_size?: number; p_days_ahead?: number }
         Returns: {
