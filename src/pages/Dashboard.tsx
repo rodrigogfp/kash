@@ -2,13 +2,16 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { LogOut, Wallet, TrendingUp, MessageCircle, Settings, Plus, RefreshCw } from "lucide-react";
+import { LogOut, Wallet, TrendingUp, MessageCircle, Settings, Plus, RefreshCw, Target, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserBalance } from "@/hooks/useUserBalance";
 import { useBankConnections } from "@/hooks/useBankConnections";
+import { useUrgentAlerts, useDismissAlert, useMarkAlertAsSeen } from "@/hooks/useAlerts";
+import { AlertBell } from "@/components/alerts";
+import { AlertCard } from "@/components/alerts/AlertCard";
 import { toast } from "sonner";
 
 function formatCurrency(value: number) {
@@ -23,11 +26,26 @@ export default function Dashboard() {
   const { user, profile, signOut } = useAuth();
   const { data: balance, isLoading: isLoadingBalance } = useUserBalance(user?.id);
   const { data: connections, isLoading: isLoadingConnections } = useBankConnections(user?.id);
+  const { data: urgentAlerts } = useUrgentAlerts(user?.id, 3);
+  const dismissAlert = useDismissAlert();
+  const markSeen = useMarkAlertAsSeen();
 
   const handleSignOut = async () => {
     await signOut();
     toast.success("Até logo!");
     navigate("/auth/login");
+  };
+
+  const handleDismissAlert = (alertId: string) => {
+    if (user) {
+      dismissAlert.mutate({ alertId, userId: user.id });
+    }
+  };
+
+  const handleMarkSeen = (alertId: string) => {
+    if (user) {
+      markSeen.mutate({ alertId, userId: user.id });
+    }
   };
 
   const displayName = profile?.preferred_name || profile?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "Usuário";
@@ -49,10 +67,11 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gradient">Kash</h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground hidden sm:block">
               Olá, {displayName}
             </span>
+            {user && <AlertBell userId={user.id} />}
             <Button variant="ghost" size="icon" onClick={handleSignOut}>
               <LogOut className="w-5 h-5" />
             </Button>
@@ -67,6 +86,25 @@ export default function Dashboard() {
           <h2 className="text-3xl font-semibold mb-2">Bom dia, {displayName}!</h2>
           <p className="text-muted-foreground">Aqui está um resumo das suas finanças.</p>
         </div>
+
+        {/* Urgent alerts */}
+        {urgentAlerts && urgentAlerts.length > 0 && (
+          <div className="mb-6 space-y-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Alertas importantes</span>
+            </div>
+            {urgentAlerts.map((alert) => (
+              <AlertCard
+                key={alert.id}
+                alert={alert}
+                compact
+                onDismiss={handleDismissAlert}
+                onMarkSeen={handleMarkSeen}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Balance card */}
         <Card className="glass-strong mb-8 glow">
@@ -110,7 +148,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Quick actions */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card 
             className="glass hover:glow transition-shadow cursor-pointer"
             onClick={() => navigate("/accounts")}
@@ -126,7 +164,10 @@ export default function Dashboard() {
             </CardHeader>
           </Card>
 
-          <Card className="glass hover:glow transition-shadow cursor-pointer">
+          <Card 
+            className="glass hover:glow transition-shadow cursor-pointer"
+            onClick={() => navigate("/analytics")}
+          >
             <CardHeader className="flex flex-row items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-success" />
@@ -134,6 +175,21 @@ export default function Dashboard() {
               <div>
                 <CardTitle className="text-lg">Análises</CardTitle>
                 <CardDescription>Veja seus gastos</CardDescription>
+              </div>
+            </CardHeader>
+          </Card>
+
+          <Card 
+            className="glass hover:glow transition-shadow cursor-pointer"
+            onClick={() => navigate("/goals")}
+          >
+            <CardHeader className="flex flex-row items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
+                <Target className="w-6 h-6 text-warning" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Metas</CardTitle>
+                <CardDescription>Acompanhe objetivos</CardDescription>
               </div>
             </CardHeader>
           </Card>
@@ -156,7 +212,11 @@ export default function Dashboard() {
 
         {/* Settings shortcut */}
         <div className="mt-8 flex justify-center">
-          <Button variant="ghost" className="gap-2 text-muted-foreground">
+          <Button 
+            variant="ghost" 
+            className="gap-2 text-muted-foreground"
+            onClick={() => navigate("/settings/notifications")}
+          >
             <Settings className="w-4 h-4" />
             Configurações
           </Button>
