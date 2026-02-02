@@ -17,8 +17,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 9%;
 
-    /* Primary - Subtle teal */
-    --primary: 180 60% 45%;
+    /* Primary - Subtle money green */
+    --primary: 150 40% 40%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary - Neutral gray */
@@ -44,7 +44,7 @@
     /* Form elements */
     --border: 0 0% 90%;
     --input: 0 0% 96%;
-    --ring: 180 60% 45%;
+    --ring: 150 40% 40%;
 
     --radius: 1.25rem;
 
@@ -61,12 +61,12 @@
     /* Sidebar */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 180 60% 45%;
+    --sidebar-primary: 150 40% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 94%;
     --sidebar-accent-foreground: 0 0% 9%;
     --sidebar-border: 0 0% 90%;
-    --sidebar-ring: 180 60% 45%;
+    --sidebar-ring: 150 40% 40%;
   }
 
   .dark {
@@ -81,8 +81,8 @@
     --popover: 0 0% 10%;
     --popover-foreground: 0 0% 98%;
 
-    /* Primary */
-    --primary: 180 55% 55%;
+    /* Primary - Money green */
+    --primary: 150 35% 50%;
     --primary-foreground: 0 0% 0%;
 
     /* Secondary */
@@ -108,7 +108,7 @@
     /* Form elements */
     --border: 0 0% 18%;
     --input: 0 0% 12%;
-    --ring: 180 55% 55%;
+    --ring: 150 35% 50%;
 
     /* Glass effects - Apple style */
     --glass-bg: 0 0% 15% / 0.6;
@@ -123,12 +123,12 @@
     /* Sidebar */
     --sidebar-background: 0 0% 5%;
     --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 180 55% 55%;
+    --sidebar-primary: 150 35% 50%;
     --sidebar-primary-foreground: 0 0% 0%;
     --sidebar-accent: 0 0% 12%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 0 0% 15%;
-    --sidebar-ring: 180 55% 55%;
+    --sidebar-ring: 150 35% 50%;
   }
 }
 
@@ -168,10 +168,10 @@
     border: 1px solid hsl(var(--glass-border));
   }
 
-  /* Gradient text */
+  /* Gradient text - Money green */
   .text-gradient {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(180 70% 60%) 100%);
+    background-image: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(145 45% 55%) 100%);
   }
 
   /* Subtle glow effects */
