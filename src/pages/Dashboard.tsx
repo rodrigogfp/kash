@@ -1,14 +1,28 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Wallet, TrendingUp, MessageCircle, Settings, Plus } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { LogOut, Wallet, TrendingUp, MessageCircle, Settings, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserBalance } from "@/hooks/useUserBalance";
+import { useBankConnections } from "@/hooks/useBankConnections";
 import { toast } from "sonner";
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
+  const { data: balance, isLoading: isLoadingBalance } = useUserBalance(user?.id);
+  const { data: connections, isLoading: isLoadingConnections } = useBankConnections(user?.id);
 
   const handleSignOut = async () => {
     await signOut();
@@ -17,6 +31,9 @@ export default function Dashboard() {
   };
 
   const displayName = profile?.preferred_name || profile?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "Usuário";
+
+  const hasConnections = connections && connections.length > 0;
+  const lastSync = balance?.last_sync ? parseISO(balance.last_sync) : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -54,23 +71,50 @@ export default function Dashboard() {
         {/* Balance card */}
         <Card className="glass-strong mb-8 glow">
           <CardHeader>
-            <CardDescription>Saldo total</CardDescription>
-            <CardTitle className="text-4xl font-bold">R$ 0,00</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardDescription>Saldo total</CardDescription>
+              {lastSync && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3" />
+                  Atualizado {format(lastSync, "dd/MM 'às' HH:mm", { locale: ptBR })}
+                </span>
+              )}
+            </div>
+            {isLoadingBalance ? (
+              <Skeleton className="h-10 w-48" />
+            ) : (
+              <CardTitle className="text-4xl font-bold">
+                {formatCurrency(balance?.total_balance || 0)}
+              </CardTitle>
+            )}
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Conecte suas contas bancárias para ver seu saldo agregado.
-            </p>
-            <Button className="mt-4 gap-2">
-              <Plus className="w-4 h-4" />
-              Adicionar conta
-            </Button>
+            {hasConnections ? (
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <span>{balance?.account_count || 0} conta{(balance?.account_count || 0) !== 1 ? "s" : ""}</span>
+                <span>•</span>
+                <span>{connections.length} banco{connections.length !== 1 ? "s" : ""} conectado{connections.length !== 1 ? "s" : ""}</span>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Conecte suas contas bancárias para ver seu saldo agregado.
+                </p>
+                <Button className="mt-4 gap-2" onClick={() => navigate("/accounts")}>
+                  <Plus className="w-4 h-4" />
+                  Adicionar conta
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
 
         {/* Quick actions */}
         <div className="grid gap-4 md:grid-cols-3">
-          <Card className="glass hover:glow transition-shadow cursor-pointer">
+          <Card 
+            className="glass hover:glow transition-shadow cursor-pointer"
+            onClick={() => navigate("/accounts")}
+          >
             <CardHeader className="flex flex-row items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Wallet className="w-6 h-6 text-primary" />

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -27,6 +28,7 @@ import {
   Clock,
   Wallet,
   Loader2,
+  ChevronRight,
 } from "lucide-react";
 
 interface ConnectionStatusProps {
@@ -34,9 +36,16 @@ interface ConnectionStatusProps {
 }
 
 export function ConnectionStatus({ connection }: ConnectionStatusProps) {
+  const navigate = useNavigate();
   const [isRevoking, setIsRevoking] = useState(false);
   const initiateSync = useInitiateSync();
   const revokeConnection = useRevokeConnection();
+
+  const handleViewDetails = () => {
+    if (connection.id) {
+      navigate(`/accounts/${connection.id}`);
+    }
+  };
 
   const getStatusBadge = () => {
     switch (connection.status) {
@@ -108,7 +117,10 @@ export function ConnectionStatus({ connection }: ConnectionStatusProps) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
     >
-      <Card className="overflow-hidden">
+      <Card 
+        className="overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+        onClick={handleViewDetails}
+      >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
@@ -132,7 +144,10 @@ export function ConnectionStatus({ connection }: ConnectionStatusProps) {
                 </p>
               </div>
             </div>
-            {getStatusBadge()}
+            <div className="flex items-center gap-2">
+              {getStatusBadge()}
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </div>
           </div>
         </CardHeader>
 
