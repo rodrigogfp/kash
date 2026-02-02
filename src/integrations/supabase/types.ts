@@ -1143,6 +1143,7 @@ export type Database = {
       }
     }
     Functions: {
+      archive_old_alerts: { Args: { p_days_old?: number }; Returns: number }
       calculate_user_total_balance: {
         Args: { p_user_id: string }
         Returns: {
@@ -1151,6 +1152,11 @@ export type Database = {
           total_available: number
           total_balance: number
         }[]
+      }
+      check_goal_milestones: { Args: { p_user_id?: string }; Returns: number }
+      check_low_balance_alerts: {
+        Args: { p_threshold?: number }
+        Returns: number
       }
       check_upcoming_bills: { Args: { p_days_ahead?: number }; Returns: number }
       compute_monthly_snapshot: {
@@ -1283,6 +1289,37 @@ export type Database = {
         Returns: undefined
       }
       refresh_user_balances: { Args: never; Returns: undefined }
+      run_scheduled_alert_scan: { Args: never; Returns: Json }
+      scan_for_bill_reminders: {
+        Args: { p_batch_size?: number; p_days_ahead?: number }
+        Returns: {
+          alerts_created: number
+          errors: number
+          users_processed: number
+        }[]
+      }
+      score_transaction_anomaly: {
+        Args: { p_transaction_id: string }
+        Returns: {
+          anomaly_reasons: Json
+          anomaly_score: number
+          is_anomaly: boolean
+          transaction_id: string
+        }[]
+      }
+      update_goal_progress: {
+        Args: { p_goal_id: string; p_user_id: string }
+        Returns: {
+          current_amount: number
+          days_remaining: number
+          goal_id: string
+          name: string
+          on_track: boolean
+          progress_pct: number
+          status: string
+          target_amount: number
+        }[]
+      }
       upsert_transaction_from_provider: {
         Args: { p_connection_id: string; p_payload: Json }
         Returns: string
