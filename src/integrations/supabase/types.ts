@@ -132,6 +132,13 @@ export type Database = {
             referencedRelation: "bank_connections"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "bank_accounts_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       bank_connections: {
@@ -287,6 +294,13 @@ export type Database = {
             referencedRelation: "bank_connections"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sync_jobs_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_profiles: {
@@ -371,10 +385,67 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      bank_connections_safe: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          external_connection_id: string | null
+          id: string | null
+          last_sync: string | null
+          provider_key: string | null
+          scopes: string[] | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          external_connection_id?: string | null
+          id?: string | null
+          last_sync?: string | null
+          provider_key?: string | null
+          scopes?: string[] | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          external_connection_id?: string | null
+          id?: string | null
+          last_sync?: string | null
+          provider_key?: string | null
+          scopes?: string[] | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_connections_provider_key_fkey"
+            columns: ["provider_key"]
+            isOneToOne: false
+            referencedRelation: "supported_banks"
+            referencedColumns: ["provider_key"]
+          },
+          {
+            foreignKeyName: "bank_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       is_service_role: { Args: never; Returns: boolean }
+      owns_bank_connection: {
+        Args: { _connection_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
