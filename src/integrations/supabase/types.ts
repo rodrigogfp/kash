@@ -201,6 +201,47 @@ export type Database = {
           },
         ]
       }
+      categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          icon: string | null
+          id: string
+          is_system: boolean | null
+          name: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_system?: boolean | null
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_system?: boolean | null
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supported_banks: {
         Row: {
           countries: string[] | null
@@ -299,6 +340,130 @@ export type Database = {
             columns: ["connection_id"]
             isOneToOne: false
             referencedRelation: "bank_connections_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaction_categories_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_category_id: string | null
+          new_category_name: string | null
+          old_category_id: string | null
+          old_category_name: string | null
+          transaction_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_category_id?: string | null
+          new_category_name?: string | null
+          old_category_id?: string | null
+          old_category_name?: string | null
+          transaction_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_category_id?: string | null
+          new_category_name?: string | null
+          old_category_id?: string | null
+          old_category_name?: string | null
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_categories_history_new_category_id_fkey"
+            columns: ["new_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_categories_history_old_category_id_fkey"
+            columns: ["old_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_categories_history_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          category: string | null
+          category_id: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          external_transaction_id: string
+          id: string
+          imported_at: string
+          merchant_name: string | null
+          posted_at: string
+          raw: Json | null
+          transaction_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          category?: string | null
+          category_id?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          external_transaction_id: string
+          id?: string
+          imported_at?: string
+          merchant_name?: string | null
+          posted_at: string
+          raw?: Json | null
+          transaction_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          category?: string | null
+          category_id?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          external_transaction_id?: string
+          id?: string
+          imported_at?: string
+          merchant_name?: string | null
+          posted_at?: string
+          raw?: Json | null
+          transaction_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
             referencedColumns: ["id"]
           },
         ]
@@ -439,6 +604,24 @@ export type Database = {
           },
         ]
       }
+      user_balances: {
+        Row: {
+          account_count: number | null
+          last_sync: string | null
+          total_available: number | null
+          total_balance: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       is_service_role: { Args: never; Returns: boolean }
@@ -446,6 +629,7 @@ export type Database = {
         Args: { _connection_id: string }
         Returns: boolean
       }
+      refresh_user_balances: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
