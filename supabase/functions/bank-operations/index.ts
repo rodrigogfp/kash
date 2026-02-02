@@ -88,80 +88,212 @@ interface ProviderAdapter {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MOCK PROVIDER (for development/testing)
+// PLUGGY API CONFIGURATION
 // ─────────────────────────────────────────────────────────────────────────────
 
-class MockProviderAdapter implements ProviderAdapter {
+const PLUGGY_API_URL = "https://api.pluggy.ai";
+
+interface PluggyAuthResponse {
+  apiKey: string;
+}
+
+interface PluggyConnectTokenResponse {
+  accessToken: string;
+}
+
+interface PluggyItemResponse {
+  id: string;
+  connector: {
+    id: number;
+    name: string;
+  };
+  status: string;
+  executionStatus: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface PluggyAccountResponse {
+  id: string;
+  name: string;
+  type: string;
+  subtype: string;
+  balance: number;
+  currencyCode: string;
+  itemId: string;
+}
+
+// Get Pluggy API key (authentication)
+async function getPluggyApiKey(): Promise<string> {
+  const clientId = Deno.env.get("PLUGGY_CLIENT_ID");
+  const clientSecret = Deno.env.get("PLUGGY_CLIENT_SECRET");
+  
+  if (!clientId || !clientSecret) {
+    throw new Error("Pluggy credentials not configured");
+  }
+  
+  const response = await fetch(`${PLUGGY_API_URL}/auth`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientId, clientSecret }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("[Pluggy] Auth failed:", error);
+    throw new Error("Failed to authenticate with Pluggy");
+  }
+  
+  const data: PluggyAuthResponse = await response.json();
+  return data.apiKey;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLUGGY PROVIDER ADAPTER (Real Open Finance integration)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class PluggyProviderAdapter implements ProviderAdapter {
+  private connectorId: number;
+  
+  constructor(connectorId: number) {
+    this.connectorId = connectorId;
+  }
+  
   async createLinkToken(userId: string) {
-    console.log(`[MockProvider] Creating link token for user: ${userId}`);
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    console.log(`[Pluggy] Creating connect token for user: ${userId}, connector: ${this.connectorId}`);
+    
+    const apiKey = await getPluggyApiKey();
+    
+    const response = await fetch(`${PLUGGY_API_URL}/connect_token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-KEY": apiKey,
+      },
+      body: JSON.stringify({
+        clientUserId: userId,
+        // Optional: restrict to specific connector
+        // connectorId: this.connectorId,
+      }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("[Pluggy] Create connect token failed:", error);
+      throw new Error("Failed to create Pluggy connect token");
+    }
+    
+    const data: PluggyConnectTokenResponse = await response.json();
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min expiry
+    
     return {
-      linkToken: `mock_link_${crypto.randomUUID()}`,
+      linkToken: data.accessToken,
       expiresAt,
     };
   }
 
-  async exchangePublicToken(publicToken: string) {
-    console.log(`[MockProvider] Exchanging public token: ${publicToken.substring(0, 20)}...`);
+  async exchangePublicToken(itemId: string) {
+    console.log(`[Pluggy] Getting item details for: ${itemId}`);
+    
+    const apiKey = await getPluggyApiKey();
+    
+    // The "public token" in Pluggy's flow is actually the Item ID
+    // returned after user completes the widget flow
+    const response = await fetch(`${PLUGGY_API_URL}/items/${itemId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-KEY": apiKey,
+      },
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("[Pluggy] Get item failed:", error);
+      throw new Error("Failed to get Pluggy item");
+    }
+    
+    const item: PluggyItemResponse = await response.json();
+    
+    // Pluggy doesn't use access/refresh tokens per item - the API key is used
+    // We store the item ID as the "access token" for reference
     return {
-      accessToken: `mock_access_${crypto.randomUUID()}`,
-      refreshToken: `mock_refresh_${crypto.randomUUID()}`,
-      externalConnectionId: `mock_conn_${crypto.randomUUID()}`,
-      scopes: ["accounts", "balances", "transactions"],
+      accessToken: itemId,
+      refreshToken: undefined,
+      externalConnectionId: item.id,
+      scopes: ["accounts", "identity", "transactions"],
     };
   }
 
-  async refreshTokens(refreshToken: string) {
-    console.log(`[MockProvider] Refreshing tokens`);
+  async refreshTokens(_refreshToken: string) {
+    // Pluggy uses API key authentication, no token refresh needed per item
+    console.log(`[Pluggy] Token refresh not needed - using API key auth`);
     return {
-      accessToken: `mock_access_${crypto.randomUUID()}`,
-      refreshToken: `mock_refresh_${crypto.randomUUID()}`,
+      accessToken: _refreshToken, // Return the same item ID
+      refreshToken: undefined,
     };
   }
 
-  async fetchAccounts(_accessToken: string) {
-    console.log(`[MockProvider] Fetching accounts`);
-    return [
-      {
-        externalAccountId: `mock_acc_${crypto.randomUUID()}`,
-        name: "Conta Corrente",
-        accountType: "checking",
-        currency: "BRL",
-        currentBalance: 5432.10,
-        availableBalance: 5432.10,
+  async fetchAccounts(itemId: string) {
+    console.log(`[Pluggy] Fetching accounts for item: ${itemId}`);
+    
+    const apiKey = await getPluggyApiKey();
+    
+    const response = await fetch(`${PLUGGY_API_URL}/accounts?itemId=${itemId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-KEY": apiKey,
       },
-      {
-        externalAccountId: `mock_acc_${crypto.randomUUID()}`,
-        name: "Poupança",
-        accountType: "savings",
-        currency: "BRL",
-        currentBalance: 15000.00,
-        availableBalance: 15000.00,
-      },
-    ];
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("[Pluggy] Fetch accounts failed:", error);
+      throw new Error("Failed to fetch Pluggy accounts");
+    }
+    
+    const data: { results: PluggyAccountResponse[] } = await response.json();
+    
+    return data.results.map((acc) => ({
+      externalAccountId: acc.id,
+      name: acc.name,
+      accountType: acc.type.toLowerCase(),
+      currency: acc.currencyCode || "BRL",
+      currentBalance: acc.balance,
+      availableBalance: acc.balance,
+    }));
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONNECTOR ID MAPPING (Pluggy connector IDs for Brazilian banks)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PLUGGY_CONNECTOR_IDS: Record<string, number> = {
+  nubank: 201,
+  itau: 204,
+  bradesco: 206,
+  santander: 209,
+  bb: 203,
+  caixa: 207,
+  xp: 232,
+  inter: 213,
+  c6: 214,
+  btg: 219,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROVIDER FACTORY
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getProviderAdapter(providerKey: string): ProviderAdapter {
-  // TODO: Implement real provider adapters when integrating with actual Open Finance providers
-  // For now, return mock adapter for all providers
-  console.log(`[ProviderFactory] Getting adapter for: ${providerKey}`);
+  console.log(`[ProviderFactory] Getting Pluggy adapter for: ${providerKey}`);
   
-  switch (providerKey) {
-    case "nubank":
-    case "itau":
-    case "bradesco":
-    case "santander":
-    case "bb":
-    case "caixa":
-    case "xp":
-    default:
-      return new MockProviderAdapter();
-  }
+  // Get connector ID for the bank, default to 0 (let Pluggy widget show all)
+  const connectorId = PLUGGY_CONNECTOR_IDS[providerKey] || 0;
+  
+  return new PluggyProviderAdapter(connectorId);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
