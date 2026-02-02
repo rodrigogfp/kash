@@ -85,6 +85,18 @@ interface ProviderAdapter {
     currentBalance: number;
     availableBalance: number;
   }>>;
+  fetchTransactions(accessToken: string, accountId: string, from?: Date, to?: Date): Promise<Array<{
+    externalTransactionId: string;
+    externalAccountId: string;
+    amount: number;
+    currency: string;
+    postedAt: string;
+    transactionDate: string | null;
+    description: string;
+    merchantName: string | null;
+    category: string | null;
+    raw: Record<string, unknown>;
+  }>>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -262,6 +274,60 @@ class PluggyProviderAdapter implements ProviderAdapter {
       currency: acc.currencyCode || "BRL",
       currentBalance: acc.balance,
       availableBalance: acc.balance,
+    }));
+  }
+
+  async fetchTransactions(itemId: string, accountId: string, from?: Date, to?: Date) {
+    console.log(`[Pluggy] Fetching transactions for account: ${accountId}`);
+    
+    const apiKey = await getPluggyApiKey();
+    
+    // Build query params
+    const params = new URLSearchParams({ accountId });
+    if (from) params.append('from', from.toISOString().split('T')[0]);
+    if (to) params.append('to', to.toISOString().split('T')[0]);
+    
+    const response = await fetch(`${PLUGGY_API_URL}/transactions?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-KEY": apiKey,
+      },
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("[Pluggy] Fetch transactions failed:", error);
+      throw new Error("Failed to fetch Pluggy transactions");
+    }
+    
+    interface PluggyTransaction {
+      id: string;
+      accountId: string;
+      amount: number;
+      currencyCode: string;
+      date: string;
+      description: string;
+      descriptionRaw: string;
+      category: string | null;
+      merchant?: { name: string } | null;
+      type: string;
+      status: string;
+    }
+    
+    const data: { results: PluggyTransaction[] } = await response.json();
+    
+    return data.results.map((tx) => ({
+      externalTransactionId: tx.id,
+      externalAccountId: tx.accountId,
+      amount: tx.amount,
+      currency: tx.currencyCode || "BRL",
+      postedAt: tx.date,
+      transactionDate: tx.date.split('T')[0],
+      description: tx.description || tx.descriptionRaw,
+      merchantName: tx.merchant?.name || null,
+      category: tx.category,
+      raw: tx as unknown as Record<string, unknown>,
     }));
   }
 }
@@ -565,6 +631,353 @@ async function initiateSync(
   return { jobId };
 }
 
+// Rate limiting for manual resyncs (in-memory, resets on function cold start)
+const resyncRateLimits = new Map<string, { count: number; resetAt: number }>();
+const RESYNC_LIMIT = 5; // 5 resyncs per hour
+const RESYNC_WINDOW = 60 * 60 * 1000; // 1 hour
+
+function checkResyncRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const userLimit = resyncRateLimits.get(userId);
+  
+  if (!userLimit || now > userLimit.resetAt) {
+    resyncRateLimits.set(userId, { count: 1, resetAt: now + RESYNC_WINDOW });
+    return true;
+  }
+  
+  if (userLimit.count >= RESYNC_LIMIT) {
+    return false;
+  }
+  
+  userLimit.count++;
+  return true;
+}
+
+async function startManualResync(
+  ctx: OperationContext,
+  connectionId: string
+): Promise<{ jobId: string; message: string }> {
+  console.log(`[startManualResync] Starting for connection: ${connectionId}`);
+
+  // Check rate limit
+  if (!checkResyncRateLimit(ctx.userId)) {
+    throw new Error("Rate limit exceeded. Maximum 5 manual resyncs per hour.");
+  }
+
+  // Verify connection exists and user owns it
+  const { data: connection, error: connError } = await ctx.supabaseAdmin
+    .from("bank_connections")
+    .select("id, user_id, status, provider_key")
+    .eq("id", connectionId)
+    .single();
+
+  if (connError || !connection) {
+    throw new Error("Connection not found");
+  }
+
+  if (connection.user_id !== ctx.userId) {
+    throw new Error("Unauthorized");
+  }
+
+  if (connection.status !== "active") {
+    throw new Error(`Connection status is ${connection.status}, cannot sync`);
+  }
+
+  // Check for existing pending/running job
+  const { data: existingJobs } = await ctx.supabaseAdmin
+    .from("sync_jobs")
+    .select("id, status, created_at")
+    .eq("connection_id", connectionId)
+    .in("status", ["pending", "running"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (existingJobs && existingJobs.length > 0) {
+    return { 
+      jobId: existingJobs[0].id as string, 
+      message: "Sync already in progress" 
+    };
+  }
+
+  // Create new sync job with manual flag
+  const { data: job, error: jobError } = await ctx.supabaseAdmin
+    .from("sync_jobs")
+    .insert({
+      connection_id: connectionId,
+      job_type: "manual",
+      status: "pending",
+      scheduled_at: new Date().toISOString(),
+      payload: { 
+        initiated_by: ctx.userId, 
+        manual: true,
+        provider_key: connection.provider_key 
+      },
+    })
+    .select()
+    .single();
+
+  if (jobError) {
+    throw new Error("Failed to create sync job");
+  }
+
+  const jobId = job.id as string;
+
+  // Log audit event
+  await ctx.supabaseAdmin.from("audit_events").insert({
+    user_id: ctx.userId,
+    event_type: "manual_resync_initiated",
+    payload: { connection_id: connectionId, job_id: jobId },
+  });
+
+  console.log(`[startManualResync] Job created: ${jobId}`);
+  return { jobId, message: "Sync job queued" };
+}
+
+async function getSyncStatus(
+  ctx: OperationContext,
+  jobId: string
+): Promise<{
+  status: string;
+  jobType: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  result: Record<string, unknown> | null;
+  errorMessage: string | null;
+  attempts: number;
+}> {
+  console.log(`[getSyncStatus] Getting status for job: ${jobId}`);
+
+  const { data: job, error: jobError } = await ctx.supabaseAdmin
+    .from("sync_jobs")
+    .select(`
+      id, status, job_type, started_at, finished_at, 
+      result, error_message, attempts, connection_id
+    `)
+    .eq("id", jobId)
+    .single();
+
+  if (jobError || !job) {
+    throw new Error("Job not found");
+  }
+
+  // Verify user owns the connection for this job
+  const { data: connection } = await ctx.supabaseAdmin
+    .from("bank_connections")
+    .select("user_id")
+    .eq("id", job.connection_id)
+    .single();
+
+  if (!connection || connection.user_id !== ctx.userId) {
+    throw new Error("Unauthorized");
+  }
+
+  return {
+    status: job.status as string,
+    jobType: job.job_type as string,
+    startedAt: job.started_at as string | null,
+    finishedAt: job.finished_at as string | null,
+    result: job.result as Record<string, unknown> | null,
+    errorMessage: job.error_message as string | null,
+    attempts: job.attempts as number,
+  };
+}
+
+interface TransactionPayload {
+  external_transaction_id: string;
+  external_account_id: string;
+  amount: number;
+  currency?: string;
+  posted_at: string;
+  transaction_date?: string;
+  description?: string;
+  merchant_name?: string;
+  category?: string;
+  raw?: Record<string, unknown>;
+}
+
+async function ingestTransactions(
+  ctx: OperationContext,
+  connectionId: string,
+  transactions: TransactionPayload[]
+): Promise<{ inserted: number; updated: number; errors: number }> {
+  console.log(`[ingestTransactions] Ingesting ${transactions.length} transactions for connection: ${connectionId}`);
+
+  // Verify connection exists and user owns it
+  const { data: connection, error: connError } = await ctx.supabaseAdmin
+    .from("bank_connections")
+    .select("id, user_id, status")
+    .eq("id", connectionId)
+    .single();
+
+  if (connError || !connection) {
+    throw new Error("Connection not found");
+  }
+
+  if (connection.user_id !== ctx.userId) {
+    throw new Error("Unauthorized");
+  }
+
+  if (transactions.length === 0) {
+    return { inserted: 0, updated: 0, errors: 0 };
+  }
+
+  // Chunk large payloads to avoid memory issues
+  const CHUNK_SIZE = 100;
+  let totalInserted = 0;
+  let totalUpdated = 0;
+  let totalErrors = 0;
+
+  for (let i = 0; i < transactions.length; i += CHUNK_SIZE) {
+    const chunk = transactions.slice(i, i + CHUNK_SIZE);
+    
+    // Call DB function for batch upsert
+    const { data, error } = await ctx.supabaseAdmin
+      .rpc("upsert_transactions_batch", {
+        p_transactions: JSON.stringify(chunk),
+        p_connection_id: connectionId,
+      });
+
+    if (error) {
+      console.error(`[ingestTransactions] Batch error:`, error);
+      totalErrors += chunk.length;
+    } else if (data && data.length > 0) {
+      totalInserted += data[0].inserted_count || 0;
+      totalUpdated += data[0].updated_count || 0;
+      totalErrors += data[0].error_count || 0;
+    }
+  }
+
+  console.log(`[ingestTransactions] Complete - inserted: ${totalInserted}, updated: ${totalUpdated}, errors: ${totalErrors}`);
+  return { inserted: totalInserted, updated: totalUpdated, errors: totalErrors };
+}
+
+async function syncTransactions(
+  ctx: OperationContext,
+  connectionId: string,
+  fromDate?: string,
+  toDate?: string
+): Promise<{ jobId: string; transactionCount: number }> {
+  console.log(`[syncTransactions] Starting sync for connection: ${connectionId}`);
+
+  // Verify connection and get details
+  const { data: connection, error: connError } = await ctx.supabaseAdmin
+    .from("bank_connections")
+    .select("id, user_id, status, provider_key, access_token_encrypted, external_connection_id")
+    .eq("id", connectionId)
+    .single();
+
+  if (connError || !connection) {
+    throw new Error("Connection not found");
+  }
+
+  if (connection.user_id !== ctx.userId) {
+    throw new Error("Unauthorized");
+  }
+
+  if (connection.status !== "active") {
+    throw new Error(`Connection status is ${connection.status}, cannot sync`);
+  }
+
+  // Create sync job
+  const { data: job, error: jobError } = await ctx.supabaseAdmin
+    .from("sync_jobs")
+    .insert({
+      connection_id: connectionId,
+      job_type: "full_sync",
+      status: "running",
+      started_at: new Date().toISOString(),
+      scheduled_at: new Date().toISOString(),
+      payload: { initiated_by: ctx.userId, from_date: fromDate, to_date: toDate },
+    })
+    .select()
+    .single();
+
+  if (jobError || !job) {
+    throw new Error("Failed to create sync job");
+  }
+
+  const jobId = job.id as string;
+
+  // Get accounts for this connection
+  const { data: accounts } = await ctx.supabaseAdmin
+    .from("bank_accounts")
+    .select("id, external_account_id")
+    .eq("connection_id", connectionId);
+
+  if (!accounts || accounts.length === 0) {
+    // Finalize job with no transactions
+    await ctx.supabaseAdmin.rpc("finalize_sync_job", {
+      p_job_id: jobId,
+      p_result: { transaction_count: 0, accounts: 0 },
+    });
+    return { jobId, transactionCount: 0 };
+  }
+
+  // Decrypt access token (item ID for Pluggy)
+  const itemId = await decryptToken(connection.access_token_encrypted as string);
+  const adapter = getProviderAdapter(connection.provider_key as string);
+  
+  const from = fromDate ? new Date(fromDate) : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000); // Default 90 days
+  const to = toDate ? new Date(toDate) : new Date();
+
+  let totalTransactions = 0;
+  const errors: string[] = [];
+
+  // Fetch and ingest transactions for each account
+  for (const account of accounts) {
+    try {
+      const transactions = await adapter.fetchTransactions(
+        itemId,
+        account.external_account_id as string,
+        from,
+        to
+      );
+
+      if (transactions.length > 0) {
+        // Transform to expected format
+        const payload: TransactionPayload[] = transactions.map((tx) => ({
+          external_transaction_id: tx.externalTransactionId,
+          external_account_id: tx.externalAccountId,
+          amount: tx.amount,
+          currency: tx.currency,
+          posted_at: tx.postedAt,
+          transaction_date: tx.transactionDate || undefined,
+          description: tx.description,
+          merchant_name: tx.merchantName || undefined,
+          category: tx.category || undefined,
+          raw: tx.raw,
+        }));
+
+        const result = await ingestTransactions(ctx, connectionId, payload);
+        totalTransactions += result.inserted + result.updated;
+      }
+    } catch (err) {
+      console.error(`[syncTransactions] Error syncing account ${account.id}:`, err);
+      errors.push(`Account ${account.id}: ${err instanceof Error ? err.message : "Unknown error"}`);
+    }
+  }
+
+  // Update connection last_sync
+  await ctx.supabaseAdmin
+    .from("bank_connections")
+    .update({ last_sync: new Date().toISOString() })
+    .eq("id", connectionId);
+
+  // Finalize job
+  await ctx.supabaseAdmin.rpc("finalize_sync_job", {
+    p_job_id: jobId,
+    p_result: { 
+      transaction_count: totalTransactions, 
+      accounts: accounts.length,
+      errors: errors.length > 0 ? errors : undefined,
+    },
+    p_error_message: errors.length > 0 ? `${errors.length} account(s) had errors` : null,
+  });
+
+  console.log(`[syncTransactions] Complete - job: ${jobId}, transactions: ${totalTransactions}`);
+  return { jobId, transactionCount: totalTransactions };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN HANDLER
 // ─────────────────────────────────────────────────────────────────────────────
@@ -643,6 +1056,34 @@ Deno.serve(async (req) => {
           throw new Error("connection_id is required");
         }
         result = await initiateSync(ctx, params.connection_id, params.mode);
+        break;
+
+      case "start_manual_resync":
+        if (!params.connection_id) {
+          throw new Error("connection_id is required");
+        }
+        result = await startManualResync(ctx, params.connection_id);
+        break;
+
+      case "get_sync_status":
+        if (!params.job_id) {
+          throw new Error("job_id is required");
+        }
+        result = await getSyncStatus(ctx, params.job_id);
+        break;
+
+      case "ingest_transactions":
+        if (!params.connection_id || !params.transactions) {
+          throw new Error("connection_id and transactions are required");
+        }
+        result = await ingestTransactions(ctx, params.connection_id, params.transactions);
+        break;
+
+      case "sync_transactions":
+        if (!params.connection_id) {
+          throw new Error("connection_id is required");
+        }
+        result = await syncTransactions(ctx, params.connection_id, params.from_date, params.to_date);
         break;
 
       default:
