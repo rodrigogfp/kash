@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      alerts: {
+        Row: {
+          action_url: string | null
+          alert_type: string
+          created_at: string
+          dismissed: boolean
+          expires_at: string | null
+          id: string
+          message: string | null
+          payload: Json | null
+          seen: boolean
+          severity: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          alert_type: string
+          created_at?: string
+          dismissed?: boolean
+          expires_at?: string | null
+          id?: string
+          message?: string | null
+          payload?: Json | null
+          seen?: boolean
+          severity?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          alert_type?: string
+          created_at?: string
+          dismissed?: boolean
+          expires_at?: string | null
+          id?: string
+          message?: string | null
+          payload?: Json | null
+          seen?: boolean
+          severity?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analytics_snapshots: {
         Row: {
           created_at: string
@@ -478,6 +531,62 @@ export type Database = {
           },
         ]
       }
+      notification_settings: {
+        Row: {
+          alert_preferences: Json
+          created_at: string
+          daily_summary_enabled: boolean
+          daily_summary_time: string | null
+          email_enabled: boolean
+          id: string
+          push_enabled: boolean
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          sms_enabled: boolean
+          updated_at: string
+          user_id: string
+          weekly_report_enabled: boolean
+        }
+        Insert: {
+          alert_preferences?: Json
+          created_at?: string
+          daily_summary_enabled?: boolean
+          daily_summary_time?: string | null
+          email_enabled?: boolean
+          id?: string
+          push_enabled?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          sms_enabled?: boolean
+          updated_at?: string
+          user_id: string
+          weekly_report_enabled?: boolean
+        }
+        Update: {
+          alert_preferences?: Json
+          created_at?: string
+          daily_summary_enabled?: boolean
+          daily_summary_time?: string | null
+          email_enabled?: boolean
+          id?: string
+          push_enabled?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          sms_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+          weekly_report_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       period_comparisons: {
         Row: {
           base_period_end: string
@@ -557,6 +666,100 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      recurring_payments: {
+        Row: {
+          account_id: string | null
+          amount: number
+          amount_variance: number | null
+          cadence: string
+          category: string | null
+          category_id: string | null
+          confidence_score: number | null
+          created_at: string
+          currency: string
+          detection_method: string | null
+          id: string
+          is_active: boolean
+          is_essential: boolean
+          last_payment_date: string | null
+          merchant_name: string
+          merchant_pattern: string | null
+          metadata: Json | null
+          next_due_date: string | null
+          reminder_days_before: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          amount_variance?: number | null
+          cadence?: string
+          category?: string | null
+          category_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          currency?: string
+          detection_method?: string | null
+          id?: string
+          is_active?: boolean
+          is_essential?: boolean
+          last_payment_date?: string | null
+          merchant_name: string
+          merchant_pattern?: string | null
+          metadata?: Json | null
+          next_due_date?: string | null
+          reminder_days_before?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          amount_variance?: number | null
+          cadence?: string
+          category?: string | null
+          category_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          currency?: string
+          detection_method?: string | null
+          id?: string
+          is_active?: boolean
+          is_essential?: boolean
+          last_payment_date?: string | null
+          merchant_name?: string
+          merchant_pattern?: string | null
+          metadata?: Json | null
+          next_due_date?: string | null
+          reminder_days_before?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_payments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_payments_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       supported_banks: {
         Row: {
@@ -949,6 +1152,7 @@ export type Database = {
           total_balance: number
         }[]
       }
+      check_upcoming_bills: { Args: { p_days_ahead?: number }; Returns: number }
       compute_monthly_snapshot: {
         Args: {
           p_currency?: string
@@ -977,6 +1181,23 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      create_alert: {
+        Args: {
+          p_action_url?: string
+          p_alert_type: string
+          p_expires_at?: string
+          p_message?: string
+          p_payload?: Json
+          p_severity?: string
+          p_title: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      detect_recurring_payments: {
+        Args: { p_user_id: string }
+        Returns: number
       }
       finalize_sync_job: {
         Args: { p_error_message?: string; p_job_id: string; p_result?: Json }
@@ -1035,6 +1256,7 @@ export type Database = {
           transaction_count: number
         }[]
       }
+      get_unread_alerts_count: { Args: { p_user_id: string }; Returns: number }
       get_user_balance: {
         Args: { user_uuid?: string }
         Returns: {
