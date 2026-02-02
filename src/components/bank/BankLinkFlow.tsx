@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useCreateLinkToken, useExchangePublicToken } from "@/hooks/useAddBank";
+import { PluggyWidget } from "./PluggyWidget";
 import type { SupportedBank } from "@/hooks/useSupportedBanks";
 import { Loader2, CheckCircle2, XCircle, RefreshCw, Building2 } from "lucide-react";
 
@@ -27,6 +28,7 @@ export function BankLinkFlow({ bank, open, onOpenChange, onComplete }: BankLinkF
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [showPluggyWidget, setShowPluggyWidget] = useState(false);
 
   const createLinkToken = useCreateLinkToken();
   const exchangePublicToken = useExchangePublicToken();
@@ -36,6 +38,7 @@ export function BankLinkFlow({ bank, open, onOpenChange, onComplete }: BankLinkF
     setProgress(0);
     setErrorMessage(null);
     setLinkToken(null);
+    setShowPluggyWidget(false);
   }, []);
 
   // Start the flow when modal opens with a bank selected
@@ -55,50 +58,38 @@ export function BankLinkFlow({ bank, open, onOpenChange, onComplete }: BankLinkF
       setStep("initializing");
       setProgress(10);
 
-      // Step 1: Create link token
+      // Step 1: Create link token (connect token from Pluggy)
       const result = await createLinkToken.mutateAsync(bank.provider_key);
       setLinkToken(result.linkToken);
       setProgress(30);
       setStep("linking");
-
-      // In a real implementation, you would:
-      // 1. Load the provider's widget/SDK
-      // 2. Initialize it with the link token
-      // 3. Handle the callback with the public token
       
-      // For mock purposes, we simulate the provider flow
-      await simulateProviderFlow(result.linkToken, bank.provider_key);
+      // Show Pluggy widget
+      setShowPluggyWidget(true);
     } catch (error) {
       setStep("error");
       setErrorMessage(error instanceof Error ? error.message : "Erro desconhecido");
     }
   };
 
-  const simulateProviderFlow = async (token: string, providerKey: string) => {
-    // Simulate provider widget interaction
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setProgress(50);
-    
-    // Simulate user completing authorization
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+  const handlePluggySuccess = async (itemId: string) => {
+    console.log("[BankLinkFlow] Pluggy success with item:", itemId);
+    setShowPluggyWidget(false);
     setProgress(70);
     setStep("exchanging");
 
-    // Exchange the mock public token
     try {
-      // In real implementation, this would come from the provider callback
-      const mockPublicToken = `public_${token.split("_").pop()}`;
-      
+      // Exchange the Pluggy item ID for our connection
       await exchangePublicToken.mutateAsync({
-        providerKey,
-        publicToken: mockPublicToken,
+        providerKey: bank!.provider_key,
+        publicToken: itemId, // In Pluggy, the item ID is returned after success
       });
 
       setProgress(90);
       setStep("syncing");
       
-      // Simulate initial sync
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Brief delay for visual feedback
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       setProgress(100);
       setStep("success");
       
@@ -110,6 +101,22 @@ export function BankLinkFlow({ bank, open, onOpenChange, onComplete }: BankLinkF
     } catch (error) {
       setStep("error");
       setErrorMessage(error instanceof Error ? error.message : "Erro ao conectar");
+    }
+  };
+
+  const handlePluggyError = (error: string) => {
+    console.error("[BankLinkFlow] Pluggy error:", error);
+    setShowPluggyWidget(false);
+    setStep("error");
+    setErrorMessage(error);
+  };
+
+  const handlePluggyClose = () => {
+    console.log("[BankLinkFlow] Pluggy widget closed");
+    if (step === "linking") {
+      // User closed widget without completing
+      setShowPluggyWidget(false);
+      onOpenChange(false);
     }
   };
 
@@ -162,59 +169,71 @@ export function BankLinkFlow({ bank, open, onOpenChange, onComplete }: BankLinkF
   const content = getStepContent();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {bank?.logo_url ? (
-              <img src={bank.logo_url} alt={bank.display_name} className="w-6 h-6" />
-            ) : (
-              <Building2 className="w-6 h-6" />
+    <>
+      {/* Pluggy Widget - renders as modal overlay */}
+      {showPluggyWidget && linkToken && (
+        <PluggyWidget
+          connectToken={linkToken}
+          onSuccess={handlePluggySuccess}
+          onError={handlePluggyError}
+          onClose={handlePluggyClose}
+        />
+      )}
+
+      <Dialog open={open && !showPluggyWidget} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {bank?.logo_url ? (
+                <img src={bank.logo_url} alt={bank.display_name} className="w-6 h-6" />
+              ) : (
+                <Building2 className="w-6 h-6" />
+              )}
+              {bank?.display_name}
+            </DialogTitle>
+            <DialogDescription>
+              Conectando sua conta bancária
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col items-center py-8 space-y-6">
+            <motion.div
+              key={step}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 200 }}
+            >
+              {content.icon}
+            </motion.div>
+
+            <div className="text-center space-y-2">
+              <h3 className="font-semibold text-lg">{content.title}</h3>
+              <p className="text-sm text-muted-foreground">{content.description}</p>
+            </div>
+
+            {step !== "error" && step !== "success" && (
+              <div className="w-full">
+                <Progress value={progress} className="h-2" />
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  {progress}% concluído
+                </p>
+              </div>
             )}
-            {bank?.display_name}
-          </DialogTitle>
-          <DialogDescription>
-            Conectando sua conta bancária
-          </DialogDescription>
-        </DialogHeader>
 
-        <div className="flex flex-col items-center py-8 space-y-6">
-          <motion.div
-            key={step}
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 200 }}
-          >
-            {content.icon}
-          </motion.div>
-
-          <div className="text-center space-y-2">
-            <h3 className="font-semibold text-lg">{content.title}</h3>
-            <p className="text-sm text-muted-foreground">{content.description}</p>
+            {step === "error" && (
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleRetry}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Tentar novamente
+                </Button>
+              </div>
+            )}
           </div>
-
-          {step !== "error" && step !== "success" && (
-            <div className="w-full">
-              <Progress value={progress} className="h-2" />
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                {progress}% concluído
-              </p>
-            </div>
-          )}
-
-          {step === "error" && (
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleRetry}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Tentar novamente
-              </Button>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
