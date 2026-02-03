@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
@@ -20,6 +20,13 @@ import LoginPage from "./pages/auth/LoginPage";
 import SignUpPage from "./pages/auth/SignUpPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
+
+// Settings pages
+import SettingsLayout from "./pages/settings/SettingsLayout";
+import ProfilePage from "./pages/settings/ProfilePage";
+import SecurityPage from "./pages/settings/SecurityPage";
+import ConnectedBanksPage from "./pages/settings/ConnectedBanksPage";
+import BillingPage from "./pages/settings/BillingPage";
 
 const queryClient = new QueryClient();
 
@@ -52,7 +59,7 @@ const App = () => (
               path="/accounts/:connectionId"
               element={
                 <ProtectedRoute>
-              <AccountDetailPage />
+                  <AccountDetailPage />
                 </ProtectedRoute>
               }
             />
@@ -89,14 +96,6 @@ const App = () => (
               }
             />
             <Route
-              path="/settings/notifications"
-              element={
-                <ProtectedRoute>
-                  <NotificationSettingsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/reports"
               element={
                 <ProtectedRoute>
@@ -104,6 +103,23 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
+            {/* Settings routes with nested layout */}
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/settings/profile" replace />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="security" element={<SecurityPage />} />
+              <Route path="banks" element={<ConnectedBanksPage />} />
+              <Route path="billing" element={<BillingPage />} />
+              <Route path="notifications" element={<NotificationSettingsPage />} />
+            </Route>
 
             {/* Auth routes */}
             <Route path="/auth/login" element={<LoginPage />} />
