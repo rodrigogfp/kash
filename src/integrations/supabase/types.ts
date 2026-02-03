@@ -190,6 +190,70 @@ export type Database = {
           },
         ]
       }
+      bank_access_audit: {
+        Row: {
+          action: string
+          bank_name: string | null
+          connection_id: string | null
+          created_at: string
+          id: string
+          ip_address: unknown
+          metadata: Json | null
+          performed_by: string | null
+          provider_key: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          bank_name?: string | null
+          connection_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          performed_by?: string | null
+          provider_key?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          bank_name?: string | null
+          connection_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          performed_by?: string | null
+          provider_key?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_access_audit_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_access_audit_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_access_audit_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_accounts: {
         Row: {
           account_type: string
@@ -1122,33 +1186,45 @@ export type Database = {
           biometric_enabled: boolean | null
           created_at: string
           id: string
+          last_biometric_setup: string | null
+          last_password_change: string | null
           locale: string | null
           metadata: Json | null
           onboarding_completed: boolean | null
           onboarding_step: number | null
+          security_metadata: Json | null
           timezone: string | null
+          two_factor_enabled: boolean | null
           updated_at: string
         }
         Insert: {
           biometric_enabled?: boolean | null
           created_at?: string
           id: string
+          last_biometric_setup?: string | null
+          last_password_change?: string | null
           locale?: string | null
           metadata?: Json | null
           onboarding_completed?: boolean | null
           onboarding_step?: number | null
+          security_metadata?: Json | null
           timezone?: string | null
+          two_factor_enabled?: boolean | null
           updated_at?: string
         }
         Update: {
           biometric_enabled?: boolean | null
           created_at?: string
           id?: string
+          last_biometric_setup?: string | null
+          last_password_change?: string | null
           locale?: string | null
           metadata?: Json | null
           onboarding_completed?: boolean | null
           onboarding_step?: number | null
+          security_metadata?: Json | null
           timezone?: string | null
+          two_factor_enabled?: boolean | null
           updated_at?: string
         }
         Relationships: [
@@ -1416,6 +1492,7 @@ export type Database = {
         Args: { p_expires_in?: number; p_report_id: string }
         Returns: Json
       }
+      get_security_overview: { Args: { p_user_id: string }; Returns: Json }
       get_spending_by_category: {
         Args: { p_end_date?: string; p_start_date?: string; p_user_id: string }
         Returns: {
@@ -1461,6 +1538,21 @@ export type Database = {
       }
       get_user_subscription: { Args: { p_user_id: string }; Returns: Json }
       is_service_role: { Args: never; Returns: boolean }
+      log_bank_access_event: {
+        Args: {
+          p_action: string
+          p_bank_name?: string
+          p_connection_id: string
+          p_metadata?: Json
+          p_provider_key?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      log_password_change: {
+        Args: { p_method?: string; p_user_id: string }
+        Returns: string
+      }
       owns_bank_connection: {
         Args: { _connection_id: string }
         Returns: boolean
@@ -1494,6 +1586,10 @@ export type Database = {
           is_anomaly: boolean
           transaction_id: string
         }[]
+      }
+      update_biometric_settings: {
+        Args: { p_device_info?: Json; p_enabled: boolean; p_user_id: string }
+        Returns: Json
       }
       update_goal_progress: {
         Args: { p_goal_id: string; p_user_id: string }
