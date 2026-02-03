@@ -15,6 +15,7 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import GoalsPage from "./pages/GoalsPage";
 import AlertsPage from "./pages/AlertsPage";
 import NotificationSettingsPage from "./pages/NotificationSettingsPage";
+import ReportsPage from "./pages/ReportsPage";
 import LoginPage from "./pages/auth/LoginPage";
 import SignUpPage from "./pages/auth/SignUpPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
@@ -92,6 +93,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <NotificationSettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <ProtectedRoute>
+                  <ReportsPage />
                 </ProtectedRoute>
               }
             />
