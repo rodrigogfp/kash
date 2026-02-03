@@ -761,6 +761,74 @@ export type Database = {
           },
         ]
       }
+      reports: {
+        Row: {
+          created_at: string
+          currency: string
+          description: string | null
+          expires_at: string | null
+          file_format: string
+          file_path: string
+          file_size: number | null
+          generated_at: string
+          id: string
+          is_preserved: boolean
+          metadata: Json | null
+          period_end: string
+          period_start: string
+          report_type: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          expires_at?: string | null
+          file_format?: string
+          file_path: string
+          file_size?: number | null
+          generated_at?: string
+          id?: string
+          is_preserved?: boolean
+          metadata?: Json | null
+          period_end: string
+          period_start: string
+          report_type: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          expires_at?: string | null
+          file_format?: string
+          file_path?: string
+          file_size?: number | null
+          generated_at?: string
+          id?: string
+          is_preserved?: boolean
+          metadata?: Json | null
+          period_end?: string
+          period_start?: string
+          report_type?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supported_banks: {
         Row: {
           countries: string[] | null
@@ -1166,6 +1234,13 @@ export type Database = {
         Returns: number
       }
       check_upcoming_bills: { Args: { p_days_ahead?: number }; Returns: number }
+      cleanup_expired_reports: {
+        Args: never
+        Returns: {
+          deleted_count: number
+          freed_bytes: number
+        }[]
+      }
       compute_monthly_snapshot: {
         Args: {
           p_currency?: string
@@ -1259,6 +1334,10 @@ export type Database = {
           transaction_count: number
         }[]
       }
+      get_report_download_url: {
+        Args: { p_expires_in?: number; p_report_id: string }
+        Returns: Json
+      }
       get_spending_by_category: {
         Args: { p_end_date?: string; p_start_date?: string; p_user_id: string }
         Returns: {
@@ -1278,6 +1357,28 @@ export type Database = {
           total_available: number
           total_balance: number
           user_id: string
+        }[]
+      }
+      get_user_reports: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_report_type?: string
+          p_user_id: string
+          p_year?: number
+        }
+        Returns: {
+          description: string
+          expires_at: string
+          file_format: string
+          file_size: number
+          generated_at: string
+          id: string
+          is_preserved: boolean
+          period_end: string
+          period_start: string
+          report_type: string
+          title: string
         }[]
       }
       is_service_role: { Args: never; Returns: boolean }
