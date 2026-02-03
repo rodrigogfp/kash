@@ -766,10 +766,12 @@ export type Database = {
           created_at: string
           currency: string
           description: string | null
+          error_message: string | null
           expires_at: string | null
           file_format: string
           file_path: string
           file_size: number | null
+          finished_at: string | null
           generated_at: string
           id: string
           is_preserved: boolean
@@ -777,6 +779,7 @@ export type Database = {
           period_end: string
           period_start: string
           report_type: string
+          status: string
           title: string
           updated_at: string
           user_id: string
@@ -785,10 +788,12 @@ export type Database = {
           created_at?: string
           currency?: string
           description?: string | null
+          error_message?: string | null
           expires_at?: string | null
           file_format?: string
           file_path: string
           file_size?: number | null
+          finished_at?: string | null
           generated_at?: string
           id?: string
           is_preserved?: boolean
@@ -796,6 +801,7 @@ export type Database = {
           period_end: string
           period_start: string
           report_type: string
+          status?: string
           title: string
           updated_at?: string
           user_id: string
@@ -804,10 +810,12 @@ export type Database = {
           created_at?: string
           currency?: string
           description?: string | null
+          error_message?: string | null
           expires_at?: string | null
           file_format?: string
           file_path?: string
           file_size?: number | null
+          finished_at?: string | null
           generated_at?: string
           id?: string
           is_preserved?: boolean
@@ -815,6 +823,7 @@ export type Database = {
           period_end?: string
           period_start?: string
           report_type?: string
+          status?: string
           title?: string
           updated_at?: string
           user_id?: string
@@ -824,6 +833,59 @@ export type Database = {
             foreignKeyName: "reports_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          id: string
+          metadata: Json | null
+          plan: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          metadata?: Json | null
+          plan?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          metadata?: Json | null
+          plan?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1228,6 +1290,10 @@ export type Database = {
           total_balance: number
         }[]
       }
+      can_generate_report: {
+        Args: { p_report_type: string; p_user_id: string }
+        Returns: Json
+      }
       check_goal_milestones: { Args: { p_user_id?: string }; Returns: number }
       check_low_balance_alerts: {
         Args: { p_threshold?: number }
@@ -1282,6 +1348,18 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      create_pending_report: {
+        Args: {
+          p_file_format?: string
+          p_metadata?: Json
+          p_period_end: string
+          p_period_start: string
+          p_report_type: string
+          p_title: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       detect_recurring_payments: {
         Args: { p_user_id: string }
@@ -1381,6 +1459,7 @@ export type Database = {
           title: string
         }[]
       }
+      get_user_subscription: { Args: { p_user_id: string }; Returns: Json }
       is_service_role: { Args: never; Returns: boolean }
       owns_bank_connection: {
         Args: { _connection_id: string }
@@ -1429,6 +1508,15 @@ export type Database = {
           target_amount: number
         }[]
       }
+      update_report_status: {
+        Args: {
+          p_error_message?: string
+          p_file_size?: number
+          p_report_id: string
+          p_status: string
+        }
+        Returns: Json
+      }
       upsert_transaction_from_provider: {
         Args: { p_connection_id: string; p_payload: Json }
         Returns: string
@@ -1441,6 +1529,7 @@ export type Database = {
           updated_count: number
         }[]
       }
+      user_has_premium: { Args: { p_user_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
