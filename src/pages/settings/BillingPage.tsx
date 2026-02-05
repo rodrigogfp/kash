@@ -1,7 +1,9 @@
-import { useState } from "react";
+ import { useState, useEffect } from "react";
+ import { useSearchParams } from "react-router-dom";
 import { CreditCard, Check, Crown, Loader2, ExternalLink, Receipt } from "lucide-react";
 import { usePlans, useUserPlanLimits, useInvoices } from "@/hooks/usePlans";
 import { useSubscription } from "@/hooks/useSubscription";
+ import { useBilling } from "@/hooks/useBilling";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,27 +13,39 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function BillingPage() {
+   const [searchParams, setSearchParams] = useSearchParams();
   const { data: plans, isLoading: plansLoading } = usePlans();
   const { data: userPlan, isLoading: planLoading } = useUserPlanLimits();
-  const { data: subscription, isLoading: subLoading } = useSubscription();
+   const { data: subscription, isLoading: subLoading, refetch: refetchSub } = useSubscription();
   const { data: invoices, isLoading: invoicesLoading } = useInvoices();
-  const [upgrading, setUpgrading] = useState<string | null>(null);
+   const { isLoading: billingLoading, createCheckoutSession, openBillingPortal, cancelSubscription } = useBilling();
+   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+ 
+   // Handle success/cancel URL params
+   useEffect(() => {
+     if (searchParams.get('success') === 'true') {
+       toast.success("Assinatura realizada com sucesso!", {
+         description: "Seu plano foi atualizado."
+       });
+       refetchSub();
+       setSearchParams({});
+     } else if (searchParams.get('canceled') === 'true') {
+       toast.info("Checkout cancelado");
+       setSearchParams({});
+     }
+   }, [searchParams, setSearchParams, refetchSub]);
 
-  const handleUpgrade = async (planSlug: string) => {
-    setUpgrading(planSlug);
-    try {
-      // TODO: Integrate with Stripe checkout
-      toast.info("Integração com Stripe será implementada em breve");
-    } catch (error) {
-      toast.error("Erro ao processar upgrade");
-    } finally {
-      setUpgrading(null);
+   const handleUpgrade = (planSlug: string) => {
+     if (planSlug === 'free') {
+       toast.info("Você já está no plano gratuito");
+       return;
     }
+     setSelectedPlan(planSlug);
+     createCheckoutSession(planSlug);
   };
 
-  const handleManageSubscription = async () => {
-    // TODO: Redirect to Stripe customer portal
-    toast.info("Portal de assinatura será disponibilizado em breve");
+   const handleManageSubscription = () => {
+     openBillingPortal();
   };
 
   const formatPrice = (cents: number) => {
@@ -98,9 +112,13 @@ export default function BillingPage() {
         </CardContent>
         {userPlan?.is_premium && (
           <CardFooter>
-            <Button variant="outline" onClick={handleManageSubscription}>
-              <CreditCard className="h-4 w-4 mr-2" />
-              Gerenciar Assinatura
+             <Button variant="outline" onClick={handleManageSubscription} disabled={billingLoading}>
+               {billingLoading ? (
+                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+               ) : (
+                 <CreditCard className="h-4 w-4 mr-2" />
+               )}
+               Gerenciar Assinatura
             </Button>
           </CardFooter>
         )}
@@ -148,10 +166,10 @@ export default function BillingPage() {
                   <Button
                     className="w-full"
                     variant={isCurrentPlan ? "outline" : "default"}
-                    disabled={isCurrentPlan || !!upgrading}
+                     disabled={isCurrentPlan || billingLoading || plan.slug === 'free'}
                     onClick={() => handleUpgrade(plan.slug)}
                   >
-                    {upgrading === plan.slug && (
+                     {selectedPlan === plan.slug && billingLoading && (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     )}
                     {isCurrentPlan ? "Plano Atual" : "Selecionar"}
