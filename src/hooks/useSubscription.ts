@@ -6,7 +6,7 @@ import type { Tables } from "@/integrations/supabase/types";
 export type Subscription = Tables<"subscriptions">;
 export type SubscriptionPlan = "free" | "pro" | "enterprise";
 
-interface SubscriptionInfo {
+export interface SubscriptionInfo {
   plan: SubscriptionPlan;
   status: string;
   is_premium: boolean;
