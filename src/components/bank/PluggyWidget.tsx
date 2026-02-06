@@ -2,9 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 
 declare global {
   interface Window {
-    PluggyConnect?: {
-      init: (config: PluggyConnectConfig) => PluggyConnectInstance;
-    };
+    PluggyConnect?: new (config: PluggyConnectConfig) => PluggyConnectInstance;
   }
 }
 
@@ -18,8 +16,10 @@ interface PluggyConnectConfig {
 }
 
 interface PluggyConnectInstance {
-  open: () => void;
-  close: () => void;
+  init: () => Promise<void>;
+  show: () => void;
+  hide: () => void;
+  destroy: () => void;
 }
 
 interface PluggySuccessData {
@@ -45,43 +45,58 @@ interface PluggyWidgetProps {
   onClose?: () => void;
 }
 
-const PLUGGY_SCRIPT_URL = "https://cdn.pluggy.ai/pluggy-connect/v2.5.0/pluggy-connect.js";
+const PLUGGY_SCRIPT_URL = "https://cdn.pluggy.ai/pluggy-connect/v2.7.0/pluggy-connect.js";
 
 export function PluggyWidget({ connectToken, onSuccess, onError, onClose }: PluggyWidgetProps) {
   const instanceRef = useRef<PluggyConnectInstance | null>(null);
-  const scriptLoadedRef = useRef(false);
+  const initializingRef = useRef(false);
 
-  const initWidget = useCallback(() => {
+  const initWidget = useCallback(async () => {
+    if (initializingRef.current) return;
+    initializingRef.current = true;
+
     if (!window.PluggyConnect) {
       console.error("[PluggyWidget] PluggyConnect not loaded");
       onError("Widget não carregado");
+      initializingRef.current = false;
       return;
     }
 
     console.log("[PluggyWidget] Initializing with token:", connectToken.substring(0, 20) + "...");
 
-    instanceRef.current = window.PluggyConnect.init({
-      connectToken,
-      includeSandbox: true, // Enable sandbox for testing
-      onSuccess: (data) => {
-        console.log("[PluggyWidget] Success:", data);
-        onSuccess(data.item.id);
-      },
-      onError: (error) => {
-        console.error("[PluggyWidget] Error:", error);
-        onError(error.message);
-      },
-      onClose: () => {
-        console.log("[PluggyWidget] Closed");
-        onClose?.();
-      },
-      onEvent: (event) => {
-        console.log("[PluggyWidget] Event:", event);
-      },
-    });
+    try {
+      // Create instance with new PluggyConnect()
+      const pluggyConnect = new window.PluggyConnect({
+        connectToken,
+        includeSandbox: true, // Enable sandbox for testing
+        onSuccess: (data) => {
+          console.log("[PluggyWidget] Success:", data);
+          onSuccess(data.item.id);
+        },
+        onError: (error) => {
+          console.error("[PluggyWidget] Error:", error);
+          onError(error.message);
+        },
+        onClose: () => {
+          console.log("[PluggyWidget] Closed");
+          onClose?.();
+        },
+        onEvent: (event) => {
+          console.log("[PluggyWidget] Event:", event);
+        },
+      });
 
-    // Open widget immediately
-    instanceRef.current.open();
+      instanceRef.current = pluggyConnect;
+
+      // Open widget with init()
+      await pluggyConnect.init();
+      console.log("[PluggyWidget] Widget opened");
+    } catch (err) {
+      console.error("[PluggyWidget] Init error:", err);
+      onError(err instanceof Error ? err.message : "Erro ao abrir widget");
+    } finally {
+      initializingRef.current = false;
+    }
   }, [connectToken, onSuccess, onError, onClose]);
 
   useEffect(() => {
@@ -94,8 +109,9 @@ export function PluggyWidget({ connectToken, onSuccess, onError, onClose }: Plug
     // Check if script is being loaded
     const existingScript = document.querySelector(`script[src="${PLUGGY_SCRIPT_URL}"]`);
     if (existingScript) {
-      existingScript.addEventListener("load", initWidget);
-      return;
+      const handleLoad = () => initWidget();
+      existingScript.addEventListener("load", handleLoad);
+      return () => existingScript.removeEventListener("load", handleLoad);
     }
 
     // Load script
@@ -103,7 +119,7 @@ export function PluggyWidget({ connectToken, onSuccess, onError, onClose }: Plug
     script.src = PLUGGY_SCRIPT_URL;
     script.async = true;
     script.onload = () => {
-      scriptLoadedRef.current = true;
+      console.log("[PluggyWidget] Script loaded");
       initWidget();
     };
     script.onerror = () => {
@@ -116,7 +132,11 @@ export function PluggyWidget({ connectToken, onSuccess, onError, onClose }: Plug
     return () => {
       // Cleanup
       if (instanceRef.current) {
-        instanceRef.current.close();
+        try {
+          instanceRef.current.destroy();
+        } catch (e) {
+          console.warn("[PluggyWidget] Cleanup error:", e);
+        }
       }
     };
   }, [connectToken, initWidget, onError]);
